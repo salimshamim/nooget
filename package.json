@@ -6,6 +6,11 @@
   "bin": {
     "nooget": "./bin/nooget.js"
   },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
   "bugs": {
     "url": "https://github.com/salimshamim/nooget/issues"
   },
@@ -13,11 +18,21 @@
     "type": "git",
     "url": "git+https://github.com/salimshamim/nooget.git"
   },
+  "keywords": [
+    "cli",
+    "scaffold",
+    "template",
+    "git",
+    "github",
+    "degit",
+    "generator"
+  ],
   "license": "ISC",
   "author": "Salim Shamim",
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "prepack": "npm run build",
     "relink": "npm unlink . && npm run build && npm link",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

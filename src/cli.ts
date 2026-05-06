@@ -70,7 +70,6 @@ function parseArgs(argv: string[]): CliOptions {
 
 async function main() {
     const options = parseArgs(process.argv.slice(2));
-    console.log("Parsed CLI options:", options);
     await runClone(options);
 }
 

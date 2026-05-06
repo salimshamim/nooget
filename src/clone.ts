@@ -64,7 +64,21 @@ async function runGitClone(input: {
     tempDir: string;
 }): Promise<void> {
     return new Promise((resolve, reject) => {
-        console.log(`Cloning repository ${input.repoUrl} (ref: ${input.ref}) to temporary directory...`);
+        console.log(`Cloning template repository ${input.repoUrl} (ref: ${input.ref})...`);
+
+        const spinnerFrames = ["|", "/", "-", "\\"];
+        let spinnerIndex = 0;
+        let capturedOutput = "";
+
+        const clearProgress = () => {
+            process.stdout.write("\r" + " ".repeat(80) + "\r");
+        };
+
+        const spinner = setInterval(() => {
+            const frame = spinnerFrames[spinnerIndex++ % spinnerFrames.length];
+            process.stdout.write(`\r${frame} Cloning template repository...`);
+        }, 60);
+
         const gitProcess = spawn("git",
             [
                 "clone",
@@ -75,31 +89,40 @@ async function runGitClone(input: {
                 input.repoUrl,
                 input.tempDir
             ], {
-            stdio: "inherit",
-            shell: process.platform === "win32"
+            stdio: ["ignore", "pipe", "pipe"],
+            shell: false
         });
 
-        gitProcess.on("close", (code) => {
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(new Error(`Git clone failed with exit code ${code}`));
-            }
+        gitProcess.stdout?.setEncoding("utf8");
+        gitProcess.stdout?.on("data", (chunk) => {
+            capturedOutput += chunk;
+        });
+        gitProcess.stderr?.on("data", (chunk) => {
+            capturedOutput += chunk;
         });
 
         gitProcess.on("error", (err) => {
+            clearInterval(spinner);
+            clearProgress();
             reject(new Error(`Failed to start git process: ${err.message}`));
         });
 
         gitProcess.on("exit", (code, signal) => {
+            clearInterval(spinner);
+            clearProgress();
             if (code !== null && code !== 0) {
                 reject(new Error(`Git clone failed with exit code ${code}`));
             } else if (signal) {
                 reject(new Error(`Git clone process was killed with signal ${signal}`));
             }
             else if (code === 0) {
+                console.log("Done.");
                 resolve();
+                return;
             }
+            const failureMessage = signal ? `Git clone process was killed with signal ${signal}` : `Git clone failed with exit code ${code}`;
+            const details = capturedOutput.trim() ? `\nGit output:\n${capturedOutput}` : "";
+            reject(new Error(failureMessage + details));
         });
     });
 }
