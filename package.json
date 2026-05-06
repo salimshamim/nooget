@@ -1,6 +1,6 @@
 {
   "name": "nooget",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Windows-safe degit alternative for private HTTPS Git repositories.",
   "homepage": "https://github.com/salimshamim/nooget#readme",
   "bin": {
