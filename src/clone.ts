@@ -1,14 +1,13 @@
 import { resolve, join, dirname } from "path";
-import { cp, mkdir, readdir, rm, stat, writeFile } from "fs/promises";
-import { tmpdir } from "os";
-import { spawn } from "child_process";
+import { access, cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
 
 export type CloneOptions = {
     repoUrl: string;
     targetDir?: string;
     ref?: string;
     force?: boolean;
-    plopArgs?: string[];
 }
 
 
@@ -40,18 +39,10 @@ export async function runClone(options: CloneOptions): Promise<void> {
 
             }
         );
-        console.log(`Template cloned successfully to ${destination}, checking for plopfile...`);
-        await runPlopIfPresent(destination, options.plopArgs ?? []).catch((err) => {
-            console.error(`Error running plop: ${err instanceof Error ? err.message : String(err)}`);
-            throw err;
-        }).finally(() => {
-            console.log("Clone process completed.");
-        });
-
+        console.log(`Template cloned successfully to ${destination}`);
     }
     catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-        throw error;
     } finally {
 
         await rm(join(destination, ".git"), {
@@ -205,63 +196,4 @@ async function ensureDestinationIsWritable(
     } catch {
         throw new Error(`Destination is not writable: ${destination}`);
     }
-}
-
-
-async function runPlopIfPresent(destination: string, plopArgs: string[]): Promise<void> {
-    const plopfilePath = await findPlopfile(destination);
-    if (!plopfilePath) {
-        return;
-    }
-
-    console.log(`Detected plopfile at ${plopfilePath}. Running plop...`);
-    await runPlopCommand(destination, plopfilePath, plopArgs);
-}
-
-async function findPlopfile(destination: string): Promise<string | undefined> {
-    const candidates = ["plopfile.cjs", "plopfile.mjs", "plopfile.js"];
-    for (const file of candidates) {
-        const candidatePath = join(destination, file);
-        try {
-            const info = await stat(candidatePath);
-            if (info.isFile()) {
-                return candidatePath;
-            }
-        } catch {
-            // Ignore missing candidate.
-        }
-    }
-    return undefined;
-}
-
-async function runPlopCommand(destination: string, plopfilePath: string, plopArgs: string[]): Promise<void> {
-    const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
-    const args = ["--yes", "plop", "--plopfile", plopfilePath, ...plopArgs];
-
-    await new Promise<void>((resolvePromise, rejectPromise) => {
-        console.log(`Running command: ${npxCmd} ${args.join(" ")}`);
-        const child = spawn(npxCmd, args, {
-            cwd: destination,
-            stdio: "inherit",
-            shell: false
-        });
-
-        child.on("error", (err) => {
-            rejectPromise(new Error(`Failed to start plop: ${err.message}`));
-        });
-
-        child.on("exit", (code, signal) => {
-            if (code === 0) {
-                resolvePromise();
-                return;
-            }
-
-            if (signal) {
-                rejectPromise(new Error(`Plop process was killed with signal ${signal}`));
-                return;
-            }
-
-            rejectPromise(new Error(`Plop exited with code ${code}`));
-        });
-    });
 }

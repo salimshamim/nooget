@@ -2,23 +2,6 @@
 
 nooget is a GitHub-first scaffolding CLI for cloning a repository into a local folder without keeping Git history in the final destination.
 
-## What This Package Does
-
-`nooget` helps you bootstrap projects from template repositories.
-
-- Clones a template repository into a temporary directory.
-- Copies template files into your target folder without `.git` history.
-- If a `plopfile` is present, runs Plop to scaffold files.
-- Forwards template arguments to Plop (preferably using `--`).
-
-Typical flow:
-
-1. Resolve template repository URL.
-2. Clone into a temporary folder.
-3. Copy files to destination and remove `.git`.
-4. Run Plop in destination when a `plopfile` exists.
-5. Clean up temporary files.
-
 It is designed around a simple first version:
 
 - GitHub over HTTPS only
@@ -47,7 +30,7 @@ That links the `nooget` command globally on your machine for testing.
 ## Usage
 
 ```bash
-nooget <repo> [target-dir] [--ref <branch>] [--force] [-- <plop-args...>]
+nooget <repo> [target-dir] [--ref <branch>] [--force]
 ```
 
 Supported repo formats:
@@ -64,7 +47,6 @@ nooget facebook/react
 nooget facebook/react my-app
 nooget facebook/react my-app --ref main
 nooget https://github.com/facebook/react.git my-app
-nooget my-org/template my-app -- --name api --service users
 ```
 
 ## What It Does
@@ -75,15 +57,9 @@ When you run `nooget`, it:
 2. Clones the requested branch into a temporary directory.
 3. Copies the working tree into your destination folder.
 4. Excludes `.git` from the final copied output.
-5. If a `plopfile` exists in the cloned template, runs Plop in the destination.
-6. Removes the temporary directory.
+5. Removes the temporary directory.
 
 The destination folder should contain the repository files, but not the Git history.
-
-Plop arguments can be forwarded in two ways:
-
-- Preferred: pass arguments after `--`; they are forwarded unchanged.
-- Fallback: when `--` is not used, unknown trailing arguments are forwarded to Plop.
 
 ## Options
 

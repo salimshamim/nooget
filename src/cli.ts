@@ -5,12 +5,11 @@ type CliOptions = {
     targetDir?: string;
     ref?: string;
     force?: boolean;
-    plopArgs?: string[];
 }
 
 function printHelp(): void {
     console.log(`Usage:
-    nooget <repo> [target-dir] [--ref <branch>] [--force] [-- <plop-args...>]
+    nooget <repo> [target-dir] [--ref <branch>] [--force]
 
 Repo formats:
     owner/repo
@@ -19,68 +18,41 @@ Repo formats:
 Examples:
     nooget facebook/react
     nooget facebook/react my-app
-    nooget https://github.com/facebook/react.git my-app --ref main
-    nooget my-org/template my-app -- --name api --service users`);
+    nooget https://github.com/facebook/react.git my-app --ref main`);
 }
 
 function parseArgs(argv: string[]): CliOptions {
-    const separatorIndex = argv.indexOf("--");
-    const noogetArgs = separatorIndex === -1 ? [...argv] : argv.slice(0, separatorIndex);
-    const explicitPlopArgs = separatorIndex === -1 ? [] : argv.slice(separatorIndex + 1);
-
+    const args = [...argv];
     let ref = "main";
     let force = false;
-    const positionals: string[] = [];
-    const fallbackPlopArgs: string[] = [];
 
-    for (let i = 0; i < noogetArgs.length; i++) {
-        const arg = noogetArgs[i];
-        if(arg === undefined) continue;
-
-        if (arg === "--help" || arg === "-h") {
-            printHelp();
-            process.exit(0);
-        }
-
-        if (arg === "--force") {
-            force = true;
-            continue;
-        }
-
-        if (arg === "--ref") {
-            const refValue = noogetArgs[i + 1];
-            if (!refValue || refValue.startsWith("--")) {
-                console.error("Error: --ref option requires a value.");
-                printHelp();
-                process.exit(1);
-            }
-            ref = refValue;
-            i++;
-            continue;
-        }
-
-        if (arg.startsWith("--")) {
-            // Unknown option before "--" falls back to Plop passthrough mode.
-            fallbackPlopArgs.push(arg);
-            const next = noogetArgs[i + 1];
-            if (next && !next.startsWith("--")) {
-                fallbackPlopArgs.push(next);
-                i++;
-            }
-            continue;
-        }
-
-        if (positionals.length < 2) {
-            positionals.push(arg);
-        } else {
-            // Extra trailing non-option args also pass through to Plop.
-            fallbackPlopArgs.push(arg);
-        }
+    const helpRequested = args.includes("--help") || args.includes("-h");
+    if (helpRequested) {
+        printHelp();
+        process.exit(0);
     }
 
-    const repoUrl = positionals[0];
-    const targetDir = positionals[1];
-    const plopArgs = explicitPlopArgs.length > 0 ? explicitPlopArgs : fallbackPlopArgs;
+    const refIndex = args.indexOf("--ref");
+    if (refIndex !== -1) {
+        const refValue = args[refIndex + 1];
+        if (!refValue || refValue.startsWith("--")) {
+            console.error("Error: --ref option requires a value.");
+            printHelp();
+            process.exit(1);
+        }
+
+        ref = refValue;
+        args.splice(refIndex, 2); // Remove --ref and its value from args
+    }
+
+    const forceIndex = args.indexOf("--force");
+    if (forceIndex !== -1) {
+        force = true;
+        args.splice(forceIndex, 1); // Remove --force from args
+    }
+
+    const repoUrl = args[0] || undefined;
+    const targetDir = args[1] || undefined;
 
     if (!repoUrl) {
         console.error("Error: Repository URL is required.");
@@ -92,8 +64,7 @@ function parseArgs(argv: string[]): CliOptions {
         repoUrl,
         targetDir,
         ref,
-        force,
-        plopArgs
+        force
     };
 }
 
