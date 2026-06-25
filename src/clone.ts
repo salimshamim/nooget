@@ -16,12 +16,21 @@ export async function runClone(options: CloneOptions): Promise<void> {
     console.log("Running clone with options:", options);
     const repoUrl = resolveGitHubHttpsRepo(options.repoUrl);
     const ref = options.ref || "main";
-    const destination = resolve(
-        options.targetDir && options.targetDir.trim()
-            ? options.targetDir
-            : inferTargetDirFromRepoUrl(repoUrl));
+    const explicitTargetDir = options.targetDir?.trim();
+    const hasExplicitTargetDir = !!explicitTargetDir;
+    const targetDir = hasExplicitTargetDir
+        ? explicitTargetDir
+        : process.cwd();
 
-    await ensureDestinationIsWritable(destination, !!options.force);
+    const destination = resolve(targetDir);
+
+    await ensureDestinationIsWritable(
+        destination,
+        !!options.force,
+        hasExplicitTargetDir
+            ? undefined
+            : "This command must be run in an empty directory. Provide --target-dir for another location or use --force to continue."
+    );
     const tempParent = await ensureTempParent(destination);
     const tempDir = join(tempParent, `.nooget-temp-${Date.now()}`);
 
@@ -177,14 +186,16 @@ function inferTargetDirFromRepoUrl(repoUrl: string): string {
 
 async function ensureDestinationIsWritable(
     destination: string,
-    force: boolean
+    force: boolean,
+    nonEmptyErrorMessage?: string
 ): Promise<void> {
     try {
         const entries = await readdir(destination);
 
         if (entries.length > 0 && !force) {
             throw new Error(
-                `Destination already exists and is not empty: ${destination}. Use --force to allow overwriting.`
+                nonEmptyErrorMessage
+                    || `Destination already exists and is not empty: ${destination}. Use --force to allow overwriting.`
             );
         }
     } catch (error) {
@@ -235,12 +246,16 @@ async function findPlopfile(destination: string): Promise<string | undefined> {
 }
 
 async function runPlopCommand(destination: string, plopfilePath: string, plopArgs: string[]): Promise<void> {
-    const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
-    const args = ["--yes", "plop", "--plopfile", plopfilePath, ...plopArgs];
+    const plopArgsBase = ["--yes", "plop", "--plopfile", plopfilePath, "--dest", destination, ...plopArgs];
+
+    const command = process.platform === "win32" ? "cmd.exe" : "npx";
+    const args = process.platform === "win32"
+        ? ["/d", "/s", "/c", "npx", ...plopArgsBase]
+        : plopArgsBase;
 
     await new Promise<void>((resolvePromise, rejectPromise) => {
-        console.log(`Running command: ${npxCmd} ${args.join(" ")}`);
-        const child = spawn(npxCmd, args, {
+        console.log(`Running command: ${command} ${args.join(" ")}`);
+        const child = spawn(command, args, {
             cwd: destination,
             stdio: "inherit",
             shell: false
